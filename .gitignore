@@ -1,0 +1,5 @@
+# Binary
+svelte-check-server
+tmp
+# Added by goreleaser init:
+dist/

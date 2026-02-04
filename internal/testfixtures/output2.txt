@@ -1,0 +1,60 @@
+# Comprehensive svelte-check machine-verbose output test fixture
+# This file contains real output from svelte-check with various error and warning types.
+# It simulates multiple watch cycles including a FAILURE scenario.
+
+# =============================================================================
+# Cycle 1: Initial check with TypeScript errors, Svelte warnings, and a11y issues
+# =============================================================================
+1770310077701 START "/workspace/test-project"
+1770310079742 {"type":"ERROR","filename":"src/lib/broken-types.ts","start":{"line":1,"character":6},"end":{"line":1,"character":20},"message":"Type 'string' is not assignable to type 'number'.","code":2322}
+1770310079742 {"type":"ERROR","filename":"src/lib/broken-types.ts","start":{"line":2,"character":6},"end":{"line":2,"character":21},"message":"Type 'number' is not assignable to type 'boolean'.","code":2322}
+1770310079742 {"type":"ERROR","filename":"src/lib/broken-types.ts","start":{"line":3,"character":6},"end":{"line":3,"character":21},"message":"Type 'boolean' is not assignable to type 'string'.","code":2322}
+1770310079742 {"type":"ERROR","filename":"src/lib/broken-types.ts","start":{"line":7,"character":13},"end":{"line":7,"character":17},"message":"Type 'number' is not assignable to type 'string'.","code":2322}
+1770310079742 {"type":"ERROR","filename":"src/lib/broken-types.ts","start":{"line":7,"character":23},"end":{"line":7,"character":26},"message":"Type 'string' is not assignable to type 'number'.","code":2322}
+1770310079742 {"type":"ERROR","filename":"src/lib/broken-types.ts","start":{"line":17,"character":6},"end":{"line":17,"character":12},"message":"Type '{ host: string; }' is missing the following properties from type 'Config': port, secure","code":2739}
+1770310079742 {"type":"ERROR","filename":"src/lib/import-error.ts","start":{"line":1,"character":28},"end":{"line":1,"character":56},"message":"Cannot find module 'this-module-does-not-exist' or its corresponding type declarations.","code":2307}
+1770310079742 {"type":"ERROR","filename":"src/lib/import-error.ts","start":{"line":2,"character":28},"end":{"line":2,"character":56},"message":"Cannot find module './file-that-does-not-exist' or its corresponding type declarations.","code":2307}
+1770310079742 {"type":"WARNING","filename":"src/lib/A11yIssues.svelte","start":{"line":5,"character":0},"end":{"line":7,"character":6},"message":"Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events","code":"a11y_click_events_have_key_events","source":"svelte"}
+1770310079742 {"type":"WARNING","filename":"src/lib/A11yIssues.svelte","start":{"line":5,"character":0},"end":{"line":7,"character":6},"message":"`<div>` with a click handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions","code":"a11y_no_static_element_interactions","source":"svelte"}
+1770310079742 {"type":"WARNING","filename":"src/lib/A11yIssues.svelte","start":{"line":10,"character":0},"end":{"line":10,"character":27},"message":"`<img>` element should have an alt attribute\nhttps://svelte.dev/e/a11y_missing_attribute","code":"a11y_missing_attribute","source":"svelte"}
+1770310079742 {"type":"WARNING","filename":"src/lib/A11yIssues.svelte","start":{"line":16,"character":19},"end":{"line":16,"character":28},"message":"Avoid using autofocus\nhttps://svelte.dev/e/a11y_autofocus","code":"a11y_autofocus","source":"svelte"}
+1770310079742 {"type":"WARNING","filename":"src/lib/BrokenComponent.svelte","start":{"line":17,"character":0},"end":{"line":17,"character":21},"message":"`<img>` element should have an alt attribute\nhttps://svelte.dev/e/a11y_missing_attribute","code":"a11y_missing_attribute","source":"svelte"}
+1770310079742 {"type":"WARNING","filename":"src/lib/BrokenComponent.svelte","start":{"line":5,"character":15},"end":{"line":5,"character":33},"message":"Component has unused export property 'unusedProp'. If it is for external reference only, please consider using `export const unusedProp`\nhttps://svelte.dev/e/export_let_unused","code":"export_let_unused","source":"svelte"}
+1770310079742 {"type":"WARNING","filename":"src/lib/BrokenComponent.svelte","start":{"line":21,"character":4},"end":{"line":21,"character":17},"message":"Unused CSS selector \".unused-class\"\nhttps://svelte.dev/e/css_unused_selector","code":"css_unused_selector","source":"svelte"}
+1770310079742 {"type":"ERROR","filename":"src/lib/BrokenComponent.svelte","start":{"line":2,"character":8},"end":{"line":2,"character":13},"message":"Type 'string' is not assignable to type 'number'.","code":2322,"source":"ts"}
+1770310079742 COMPLETED 159 FILES 9 ERRORS 7 WARNINGS 4 FILES_WITH_PROBLEMS
+
+# =============================================================================
+# Cycle 2: After fixing TypeScript files, only Svelte warnings remain
+# =============================================================================
+1770310094757 START "/workspace/test-project"
+1770310095423 {"type":"WARNING","filename":"src/lib/A11yIssues.svelte","start":{"line":5,"character":0},"end":{"line":7,"character":6},"message":"Visible, non-interactive elements with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events","code":"a11y_click_events_have_key_events","source":"svelte"}
+1770310095423 {"type":"WARNING","filename":"src/lib/A11yIssues.svelte","start":{"line":5,"character":0},"end":{"line":7,"character":6},"message":"`<div>` with a click handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions","code":"a11y_no_static_element_interactions","source":"svelte"}
+1770310095423 {"type":"WARNING","filename":"src/lib/BrokenComponent.svelte","start":{"line":21,"character":4},"end":{"line":21,"character":17},"message":"Unused CSS selector \".unused-class\"\nhttps://svelte.dev/e/css_unused_selector","code":"css_unused_selector","source":"svelte"}
+1770310095423 COMPLETED 157 FILES 0 ERRORS 3 WARNINGS 2 FILES_WITH_PROBLEMS
+
+# =============================================================================
+# Cycle 3: Clean pass - all issues resolved
+# =============================================================================
+1770310104119 START "/workspace/test-project"
+1770310106063 COMPLETED 155 FILES 0 ERRORS 0 WARNINGS 0 FILES_WITH_PROBLEMS
+
+# =============================================================================
+# Cycle 4: Introduce new error
+# =============================================================================
+1770310120000 START "/workspace/test-project"
+1770310120500 {"type":"ERROR","filename":"src/routes/+page.svelte","start":{"line":10,"character":4},"end":{"line":10,"character":15},"message":"Property 'undefined_fn' does not exist on type 'Window & typeof globalThis'.","code":2339,"source":"ts"}
+1770310120501 COMPLETED 155 FILES 1 ERRORS 0 WARNINGS 1 FILES_WITH_PROBLEMS
+
+# =============================================================================
+# Cycle 5: Runtime failure scenario (simulated)
+# =============================================================================
+1770310130000 START "/workspace/test-project"
+1770310130500 FAILURE "Connection closed"
+
+# =============================================================================
+# Cycle 6: Recovery after failure - back to normal operation
+# =============================================================================
+1770310140000 START "/workspace/test-project"
+1770310142000 {"type":"WARNING","filename":"src/lib/components/ui/toggle-group/toggle-group.svelte","start":{"line":35,"character":2},"end":{"line":35,"character":9},"message":"This reference only captures the initial value of `variant`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally","code":"state_referenced_locally","source":"svelte"}
+1770310142000 COMPLETED 155 FILES 0 ERRORS 1 WARNINGS 1 FILES_WITH_PROBLEMS
