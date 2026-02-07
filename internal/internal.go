@@ -4,6 +4,7 @@ package internal
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -13,12 +14,52 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/tylergannon/go-signal"
 	kexec "k8s.io/utils/exec"
 )
+
+// =============================================================================
+// Watcher Limit
+// =============================================================================
+
+// MaxWatchers is the global limit on the number of filesystem watchers.
+// If this limit is exceeded, creating new watchers will fail with ErrTooManyWatchers.
+// This prevents misconfiguration from exhausting OS resources.
+const MaxWatchers = 100
+
+// globalWatcherCount tracks the number of active filesystem watchers.
+var globalWatcherCount atomic.Int32
+
+// ErrTooManyWatchers is returned when attempting to create a watcher would exceed MaxWatchers.
+var ErrTooManyWatchers = errors.New("too many filesystem watchers: limit exceeded")
+
+// WatcherCount returns the current number of active watchers.
+func WatcherCount() int32 {
+	return globalWatcherCount.Load()
+}
+
+// acquireWatcher attempts to increment the watcher count.
+// Returns an error if the limit would be exceeded.
+func acquireWatcher() error {
+	for {
+		current := globalWatcherCount.Load()
+		if current >= MaxWatchers {
+			return ErrTooManyWatchers
+		}
+		if globalWatcherCount.CompareAndSwap(current, current+1) {
+			return nil
+		}
+	}
+}
+
+// releaseWatcher decrements the watcher count.
+func releaseWatcher() {
+	globalWatcherCount.Add(-1)
+}
 
 // =============================================================================
 // Socket Path
@@ -403,9 +444,15 @@ type watchedPath struct {
 }
 
 // NewRealFSWatcher creates a new RealFSWatcher.
+// Returns ErrTooManyWatchers if the global watcher limit would be exceeded.
 func NewRealFSWatcher() (*RealFSWatcher, error) {
+	if err := acquireWatcher(); err != nil {
+		return nil, err
+	}
+
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
+		releaseWatcher()
 		return nil, err
 	}
 	return &RealFSWatcher{watcher: w}, nil
@@ -461,6 +508,7 @@ func (r *RealFSWatcher) Rescan() error {
 }
 
 func (r *RealFSWatcher) Close() error {
+	releaseWatcher()
 	return r.watcher.Close()
 }
 
@@ -484,9 +532,15 @@ type RealGitBranchWatcher struct {
 }
 
 // NewRealGitBranchWatcher creates a new RealGitBranchWatcher for the given workspace.
+// Returns ErrTooManyWatchers if the global watcher limit would be exceeded.
 func NewRealGitBranchWatcher(workspacePath string, executor kexec.Interface) (*RealGitBranchWatcher, error) {
+	if err := acquireWatcher(); err != nil {
+		return nil, err
+	}
+
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
+		releaseWatcher()
 		return nil, err
 	}
 
@@ -623,6 +677,7 @@ func parseGitHeadRef(content string) string {
 }
 
 func (r *RealGitBranchWatcher) Close() error {
+	releaseWatcher()
 	return r.watcher.Close()
 }
 

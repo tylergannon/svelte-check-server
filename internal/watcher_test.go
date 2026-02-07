@@ -2,12 +2,19 @@ package internal
 
 import (
 	"context"
+	"errors"
+	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 )
+
+// resetWatcherCount resets the global watcher count for testing.
+func resetWatcherCount() {
+	globalWatcherCount.Store(0)
+}
 
 // FakeFSWatcher implements FSWatcher for testing.
 type FakeFSWatcher struct {
@@ -591,4 +598,89 @@ func TestWatcher_AddsPaths(t *testing.T) {
 			t.Errorf("Third path: got %+v, want recursive 'lib'", fsWatcher.addedPaths[2])
 		}
 	})
+}
+
+func TestWatcherLimit_AcquireAndRelease(t *testing.T) {
+	resetWatcherCount()
+	defer resetWatcherCount()
+
+	if err := acquireWatcher(); err != nil {
+		t.Fatalf("acquireWatcher failed: %v", err)
+	}
+
+	if count := WatcherCount(); count != 1 {
+		t.Fatalf("WatcherCount = %d, want 1", count)
+	}
+
+	releaseWatcher()
+
+	if count := WatcherCount(); count != 0 {
+		t.Fatalf("WatcherCount = %d, want 0", count)
+	}
+}
+
+func TestWatcherLimit_ExceedsMax(t *testing.T) {
+	resetWatcherCount()
+	defer resetWatcherCount()
+
+	globalWatcherCount.Store(MaxWatchers)
+
+	err := acquireWatcher()
+	if err == nil {
+		t.Fatal("acquireWatcher should have failed when at MaxWatchers")
+	}
+
+	if !errors.Is(err, ErrTooManyWatchers) {
+		t.Fatalf("expected ErrTooManyWatchers, got %v", err)
+	}
+}
+
+func TestWatcherLimit_ConcurrentAcquire(t *testing.T) {
+	resetWatcherCount()
+	defer resetWatcherCount()
+
+	const numGoroutines = 50
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+
+	for range numGoroutines {
+		go func() {
+			defer wg.Done()
+			if err := acquireWatcher(); err != nil {
+				t.Errorf("acquireWatcher failed: %v", err)
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	if count := WatcherCount(); count != numGoroutines {
+		t.Fatalf("WatcherCount = %d, want %d", count, numGoroutines)
+	}
+}
+
+func TestWatcherLimit_RealFSWatcher_IncrementsCount(t *testing.T) {
+	resetWatcherCount()
+	defer resetWatcherCount()
+
+	if count := WatcherCount(); count != 0 {
+		t.Fatalf("WatcherCount should start at 0, got %d", count)
+	}
+
+	w, err := NewRealFSWatcher()
+	if err != nil {
+		t.Fatalf("NewRealFSWatcher failed: %v", err)
+	}
+
+	if count := WatcherCount(); count != 1 {
+		t.Fatalf("WatcherCount = %d after creating watcher, want 1", count)
+	}
+
+	if err := w.Close(); err != nil {
+		t.Fatalf("Close failed: %v", err)
+	}
+
+	if count := WatcherCount(); count != 0 {
+		t.Fatalf("WatcherCount = %d after closing watcher, want 0", count)
+	}
 }

@@ -2,15 +2,34 @@ package internal
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
+
+// testSocketPath creates a short socket path suitable for Unix domain sockets.
+// macOS has a 104-character limit for socket paths, and t.TempDir() paths can
+// exceed this when combined with long test names. This helper creates a socket
+// directly in os.TempDir() with a unique name based on the test.
+func testSocketPath(t *testing.T) string {
+	t.Helper()
+	path := fmt.Sprintf("%s/t%d.sock", os.TempDir(), time.Now().UnixNano())
+
+	if len(path) > 100 {
+		t.Fatalf("socket path too long (%d chars): %s", len(path), path)
+	}
+
+	t.Cleanup(func() {
+		_ = os.Remove(path)
+	})
+
+	return path
+}
 
 // TestNewServer tests the NewServer constructor.
 func TestNewServer(t *testing.T) {
@@ -42,9 +61,7 @@ func TestServer_SocketPath(t *testing.T) {
 
 // TestServer_StartAndStop tests starting and stopping the server.
 func TestServer_StartAndStop(t *testing.T) {
-	// Use a temp directory for the socket
-	tmpDir := t.TempDir()
-	socketPath := filepath.Join(tmpDir, "test.sock")
+	socketPath := testSocketPath(t)
 
 	// Create a runner with output so GetLatestEvent doesn't block forever
 	output := `1770255832071 START "/workspace"
@@ -88,8 +105,7 @@ func TestServer_StartAndStop(t *testing.T) {
 
 // TestServer_HandleCheck_WithErrors tests GET /check returns 500 when there are errors.
 func TestServer_HandleCheck_WithErrors(t *testing.T) {
-	tmpDir := t.TempDir()
-	socketPath := filepath.Join(tmpDir, "test.sock")
+	socketPath := testSocketPath(t)
 
 	output := `1770255832071 START "/workspace"
 1770255834342 {"type":"ERROR","filename":"src/a.ts","start":{"line":0,"character":0},"end":{"line":0,"character":1},"message":"Test error","code":2322}
@@ -143,8 +159,7 @@ func TestServer_HandleCheck_WithErrors(t *testing.T) {
 
 // TestServer_HandleCheck_NoErrors tests GET /check returns 200 when there are no errors.
 func TestServer_HandleCheck_NoErrors(t *testing.T) {
-	tmpDir := t.TempDir()
-	socketPath := filepath.Join(tmpDir, "test.sock")
+	socketPath := testSocketPath(t)
 
 	output := `1770255832071 START "/workspace"
 1770255834342 COMPLETED 100 FILES 0 ERRORS 0 WARNINGS 0 FILES_WITH_PROBLEMS
@@ -189,8 +204,7 @@ func TestServer_HandleCheck_NoErrors(t *testing.T) {
 
 // TestServer_HandleStop tests the POST /stop endpoint.
 func TestServer_HandleStop(t *testing.T) {
-	tmpDir := t.TempDir()
-	socketPath := filepath.Join(tmpDir, "test.sock")
+	socketPath := testSocketPath(t)
 
 	output := `1770255832071 START "/workspace"
 1770255834342 COMPLETED 100 FILES 0 ERRORS 0 WARNINGS 0 FILES_WITH_PROBLEMS
@@ -254,8 +268,7 @@ func TestServer_ShutdownCh(t *testing.T) {
 
 // TestServer_RemovesExistingSocket tests that Start removes existing socket.
 func TestServer_RemovesExistingSocket(t *testing.T) {
-	tmpDir := t.TempDir()
-	socketPath := filepath.Join(tmpDir, "test.sock")
+	socketPath := testSocketPath(t)
 
 	// Create a dummy file at the socket path
 	if err := os.WriteFile(socketPath, []byte("dummy"), 0o644); err != nil {
@@ -307,8 +320,7 @@ func TestServer_RemovesExistingSocket(t *testing.T) {
 
 // TestSocketExists tests the SocketExists function.
 func TestSocketExists(t *testing.T) {
-	tmpDir := t.TempDir()
-	socketPath := filepath.Join(tmpDir, "test.sock")
+	socketPath := testSocketPath(t)
 
 	// Socket doesn't exist
 	if SocketExists(socketPath) {
@@ -361,16 +373,13 @@ func TestClient_IsServerRunning(t *testing.T) {
 
 // TestClient_Shutdown tests the Shutdown method.
 func TestClient_Shutdown(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	// Create a minimal fake server to test shutdown
-	socketPath := filepath.Join(tmpDir, "test.sock")
+	socketPath := testSocketPath(t)
 
 	output := `1770255832071 START "/workspace"
 1770255834342 COMPLETED 100 FILES 0 ERRORS 0 WARNINGS 0 FILES_WITH_PROBLEMS
 `
 	executor := NewFakeExecutor(output, "")
-	r := NewRunner(tmpDir, "", executor)
+	r := NewRunner("/workspace", "", executor)
 
 	ctx := context.Background()
 	_ = r.Start(ctx)
